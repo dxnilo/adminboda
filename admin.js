@@ -13,10 +13,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const loginScreen = document.getElementById('login-screen');
 const dashboard = document.getElementById('dashboard');
 const loginForm = document.getElementById('login-form');
-const registerForm = document.getElementById('register-form');
 const loginError = document.getElementById('login-error');
-const registerError = document.getElementById('register-error');
-const registerSuccess = document.getElementById('register-success');
 const userEmailEl = document.getElementById('user-email');
 const tbody = document.getElementById('guests-tbody');
 const searchInput = document.getElementById('search-input');
@@ -27,82 +24,40 @@ const noResults = document.getElementById('no-results');
 let allGuests = [];
 
 // ═══════════════════════════════════════════════════════
-//  AUTH — Tabs, Login, Register, Logout
+//  FIXED CREDENTIALS AUTHENTICATION
+//  User: jean carlos
+//  Pass: jeananaforever
 // ═══════════════════════════════════════════════════════
 
-// Tab switching
-document.querySelectorAll('.auth-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-        document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
-        tab.classList.add('active');
-        const formId = tab.dataset.tab === 'login' ? 'login-form' : 'register-form';
-        document.getElementById(formId).classList.add('active');
-        loginError.textContent = '';
-        registerError.textContent = '';
-        registerSuccess.textContent = '';
-    });
-});
+const VALID_USER = 'jean carlos';
+const VALID_PASS = 'jeananaforever';
 
-// Login
-loginForm.addEventListener('submit', async (e) => {
+// Login submit
+loginForm.addEventListener('submit', (e) => {
     e.preventDefault();
     loginError.textContent = '';
-    const email = document.getElementById('login-email').value.trim();
-    const password = document.getElementById('login-password').value;
+    const username = document.getElementById('login-username').value.trim().toLowerCase();
+    const password = document.getElementById('login-password').value.trim();
 
-    const { data, error } = await sb.auth.signInWithPassword({ email, password });
-    if (error) {
-        loginError.textContent = error.message === 'Invalid login credentials'
-            ? 'Correo o contraseña incorrectos.'
-            : error.message;
+    if (username === VALID_USER && password === VALID_PASS) {
+        sessionStorage.setItem('admin_auth', 'true');
+        showDashboard('jean carlos');
     } else {
-        showDashboard(data.user);
-    }
-});
-
-// Register
-registerForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    registerError.textContent = '';
-    registerSuccess.textContent = '';
-
-    const email = document.getElementById('reg-email').value.trim();
-    const password = document.getElementById('reg-password').value;
-    const confirm = document.getElementById('reg-password-confirm').value;
-
-    if (password !== confirm) {
-        registerError.textContent = 'Las contraseñas no coinciden.';
-        return;
-    }
-
-    const { data, error } = await sb.auth.signUp({ email, password });
-    if (error) {
-        registerError.textContent = error.message;
-    } else {
-        registerSuccess.textContent = '¡Cuenta creada! Ahora inicia sesión.';
-        // Auto-switch to login tab after 1.5s
-        setTimeout(() => {
-            document.querySelector('[data-tab="login"]').click();
-        }, 1500);
+        loginError.textContent = 'Usuario o contraseña incorrectos.';
     }
 });
 
 // Logout
-document.getElementById('btn-logout').addEventListener('click', async () => {
-    await sb.auth.signOut();
+document.getElementById('btn-logout').addEventListener('click', () => {
+    sessionStorage.removeItem('admin_auth');
     loginScreen.classList.remove('hidden');
     dashboard.classList.add('hidden');
 });
 
-// ═══════════════════════════════════════════════════════
-//  SESSION CHECK — Auto-login if session exists
-// ═══════════════════════════════════════════════════════
-
-(async function checkSession() {
-    const { data: { session } } = await sb.auth.getSession();
-    if (session) {
-        showDashboard(session.user);
+// Session check on load
+(function checkSession() {
+    if (sessionStorage.getItem('admin_auth') === 'true') {
+        showDashboard('jean carlos');
     }
 })();
 
@@ -110,10 +65,10 @@ document.getElementById('btn-logout').addEventListener('click', async () => {
 //  DASHBOARD
 // ═══════════════════════════════════════════════════════
 
-async function showDashboard(user) {
+async function showDashboard(username) {
     loginScreen.classList.add('hidden');
     dashboard.classList.remove('hidden');
-    userEmailEl.textContent = user.email;
+    userEmailEl.textContent = 'Jean Carlos';
     await loadGuests();
 }
 
