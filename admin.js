@@ -149,6 +149,13 @@ function renderTable() {
             ? new Date(g.confirmado_en).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
             : '—';
 
+        // Base URL for production / GitHub Pages
+        const baseUrl = 'https://dxnilo.github.io/boda/?codigo=';
+
+        const actionCol = g.es_acompanante
+            ? `<span class="companion-no-link">↳ Incluido en pase</span>`
+            : `<button class="btn-copy-link" onclick="copyGuestLink('${g.codigo}', this)">📋 Copiar Link</button>`;
+
         return `<tr>
             <td><code>${g.codigo}</code></td>
             <td>${g.nombre}</td>
@@ -158,9 +165,31 @@ function renderTable() {
             <td><span class="badge ${statusClass}">${g.estado}</span></td>
             <td>${g.restricciones || '—'}</td>
             <td>${confirmDate}</td>
+            <td>${actionCol}</td>
         </tr>`;
     }).join('');
 }
+
+// Copy link function for primary guests
+window.copyGuestLink = async function (codigo, btnElement) {
+    const url = `https://dxnilo.github.io/boda/?codigo=${codigo}`;
+
+    try {
+        await navigator.clipboard.writeText(url);
+        if (btnElement) {
+            const originalText = btnElement.innerHTML;
+            btnElement.innerHTML = '¡Link Copiado! ✨';
+            btnElement.classList.add('copied');
+            setTimeout(() => {
+                btnElement.innerHTML = originalText;
+                btnElement.classList.remove('copied');
+            }, 2000);
+        }
+    } catch (err) {
+        console.error('Error al copiar link:', err);
+        prompt('Copia el link manualmente:', url);
+    }
+};
 
 // ── Filters ──
 searchInput.addEventListener('input', renderTable);
