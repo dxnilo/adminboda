@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Admin · Jean & Ana</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Great+Vibes&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="admin.css">
+</head>
+
+<body>
+
+    <!-- ═══════ LOGIN SCREEN ═══════ -->
+    <div id="login-screen" class="login-screen">
+        <div class="login-card">
+            <div class="login-header">
+                <span class="login-logo">J & A</span>
+                <h1>Panel de Administración</h1>
+                <p class="login-subtitle">Gestiona tu lista de invitados</p>
+            </div>
+
+            <!-- Tab selector: Login / Register -->
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-tab="login">Iniciar Sesión</button>
+                <button class="auth-tab" data-tab="register">Registrarse</button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="login-form" class="auth-form active">
+                <div class="input-group">
+                    <label for="login-email">Correo electrónico</label>
+                    <input type="email" id="login-email" placeholder="tu@correo.com" required>
+                </div>
+                <div class="input-group">
+                    <label for="login-password">Contraseña</label>
+                    <input type="password" id="login-password" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn-primary" id="btn-login">Entrar</button>
+                <p id="login-error" class="error-msg"></p>
+            </form>
+
+            <!-- Register Form -->
+            <form id="register-form" class="auth-form">
+                <div class="input-group">
+                    <label for="reg-email">Correo electrónico</label>
+                    <input type="email" id="reg-email" placeholder="tu@correo.com" required>
+                </div>
+                <div class="input-group">
+                    <label for="reg-password">Contraseña</label>
+                    <input type="password" id="reg-password" placeholder="Mínimo 6 caracteres" minlength="6" required>
+                </div>
+                <div class="input-group">
+                    <label for="reg-password-confirm">Confirmar contraseña</label>
+                    <input type="password" id="reg-password-confirm" placeholder="Repite la contraseña" minlength="6"
+                        required>
+                </div>
+                <button type="submit" class="btn-primary" id="btn-register">Crear Cuenta</button>
+                <p id="register-error" class="error-msg"></p>
+                <p id="register-success" class="success-msg"></p>
+            </form>
+        </div>
+    </div>
+
+    <!-- ═══════ ADMIN DASHBOARD ═══════ -->
+    <div id="dashboard" class="dashboard hidden">
+        <!-- Top bar -->
+        <header class="topbar">
+            <div class="topbar-left">
+                <span class="topbar-logo">J & A</span>
+                <h2>Panel de Invitados</h2>
+            </div>
+            <div class="topbar-right">
+                <span id="user-email" class="user-email"></span>
+                <button id="btn-logout" class="btn-logout">Cerrar Sesión</button>
+            </div>
+        </header>
+
+        <!-- Stats cards -->
+        <div class="stats-grid">
+            <div class="stat-card stat-total">
+                <div class="stat-number" id="stat-total">0</div>
+                <div class="stat-label">Total Invitados</div>
+            </div>
+            <div class="stat-card stat-confirmed">
+                <div class="stat-number" id="stat-confirmed">0</div>
+                <div class="stat-label">Confirmados</div>
+            </div>
+            <div class="stat-card stat-declined">
+                <div class="stat-number" id="stat-declined">0</div>
+                <div class="stat-label">Declinados</div>
+            </div>
+            <div class="stat-card stat-pending">
+                <div class="stat-number" id="stat-pending">0</div>
+                <div class="stat-label">Pendientes</div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters-bar">
+            <input type="text" id="search-input" placeholder="🔍 Buscar por nombre o código..." class="search-input">
+            <select id="filter-status" class="filter-select">
+                <option value="all">Todos los estados</option>
+                <option value="Pendiente">Pendiente</option>
+                <option value="Confirmado">Confirmado</option>
+                <option value="Declinado">Declinado</option>
+            </select>
+            <select id="filter-group" class="filter-select">
+                <option value="all">Todos los grupos</option>
+                <option value="Familia Novio">Familia Novio</option>
+                <option value="Familia Novia">Familia Novia</option>
+                <option value="Amigos Novio">Amigos Novio</option>
+                <option value="Amigos Novia">Amigos Novia</option>
+                <option value="Amigos Común">Amigos Común</option>
+                <option value="Invitados Novio">Invitados Novio</option>
+            </select>
+        </div>
+
+        <!-- Table -->
+        <div class="table-container">
+            <table id="guests-table">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Nombre</th>
+                        <th>Grupo</th>
+                        <th>Cupos</th>
+                        <th>Tipo</th>
+                        <th>Estado</th>
+                        <th>Restricciones</th>
+                        <th>Confirmado en</th>
+                    </tr>
+                </thead>
+                <tbody id="guests-tbody">
+                    <!-- Rows injected by JS -->
+                </tbody>
+            </table>
+            <p id="no-results" class="no-results hidden">No se encontraron invitados con esos filtros.</p>
+        </div>
+
+        <footer class="admin-footer">
+            <p>Panel Administrativo · Boda Jean & Ana · 22 de Noviembre 2026</p>
+        </footer>
+    </div>
+
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="admin.js"></script>
+</body>
+
+</html>
