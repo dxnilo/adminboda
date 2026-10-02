@@ -5,9 +5,13 @@
 
 const SUPABASE_URL = 'https://qimqrpczkkukncfxmthu.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpbXFycGN6a2t1a25jZnhtdGh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxMjA3MjUsImV4cCI6MjEwNTY5NjcyNX0.5k7bjR65hyLgmgO_MySDGkv0j6L9M-Wm_3Uii1LADk8';
+const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpbXFycGN6a2t1a25jZnhtdGh1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MDEyMDcyNSwiZXhwIjoyMTA1Njk2NzI1fQ.lJRWzxUjF1s20aAlu4hpuGcsBIlNzO1lMSXnUbmnVYs';
 
 const { createClient } = supabase;
+// Read client (anon key)
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Write client (service_role key) — bypasses RLS for insert/update/delete
+const sbAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
 // ── DOM refs ──
 const loginScreen = document.getElementById('login-screen');
@@ -69,7 +73,7 @@ async function showDashboard(username) {
 }
 
 async function loadGuests() {
-    const { data, error } = await sb.from('guests').select('*').order('codigo', { ascending: true });
+    const { data, error } = await sbAdmin.from('guests').select('*').order('codigo', { ascending: true });
     if (error) {
         console.error('Error loading guests:', error);
         return;
@@ -145,8 +149,6 @@ function renderTable() {
             ? new Date(g.confirmado_en).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
             : '—';
 
-        const baseUrl = 'https://dxnilo.github.io/boda/?codigo=';
-
         const linkCol = g.es_acompanante
             ? `<span class="companion-no-link">↳ Incluido en pase</span>`
             : `<button class="btn-copy-link" onclick="copyGuestLink('${g.codigo}', this)">📋 Copiar Link</button>`;
@@ -217,7 +219,6 @@ const modalCuposGroup = document.getElementById('modal-cupos-group');
 const modalCupos = document.getElementById('modal-cupos');
 const modalCompanionToggleGroup = document.getElementById('modal-companion-toggle-group');
 
-// Open modal to add a brand-new guest
 window.openAddGuestModal = function () {
     resetModal();
     modalTitle.textContent = 'Nuevo Invitado';
@@ -228,7 +229,6 @@ window.openAddGuestModal = function () {
     modalNombre.focus();
 };
 
-// Open modal to edit an existing guest
 window.openEditGuestModal = function (codigo) {
     resetModal();
     const guest = allGuests.find(g => g.codigo === codigo);
@@ -256,18 +256,15 @@ window.openEditGuestModal = function (codigo) {
     modalNombre.focus();
 };
 
-// Open modal to add a companion for a specific primary guest
 window.openAddCompanionModal = function (parentCode, parentName) {
     resetModal();
     modalTitle.textContent = `Agregar Acompañante de ${parentName}`;
     modalMode.value = 'add-companion';
     modalOriginalCode.value = parentCode;
 
-    // Pre-fill group from the parent
     const parent = allGuests.find(g => g.codigo === parentCode);
     if (parent) modalGrupo.value = parent.grupo || '';
 
-    // Hide companion toggle + cupos, auto-set as companion
     modalCompanionToggleGroup.classList.add('hidden');
     modalCuposGroup.classList.add('hidden');
     modalCompanionFields.classList.add('hidden');
@@ -318,7 +315,7 @@ function populatePrimaryGuestsDropdown(selectedName) {
 }
 
 // ═══════════════════════════════════════════════════════
-//  SAVE GUEST (INSERT / UPDATE)
+//  SAVE GUEST (INSERT / UPDATE) — uses sbAdmin
 // ═══════════════════════════════════════════════════════
 
 window.saveGuest = async function (e) {
@@ -335,107 +332,67 @@ window.saveGuest = async function (e) {
 
     try {
         if (mode === 'edit') {
-            // ── EDIT existing guest ──
             const codigo = modalOriginalCode.value;
-            const updateData = {
-                nombre,
-                grupo,
-                es_acompanante: isCompanion,
-                cupos
-            };
+            const updateData = { nombre, grupo, es_acompanante: isCompanion, cupos };
             if (isCompanion) {
                 updateData.acompanante_de = modalCompanionOf.value;
             } else {
                 updateData.acompanante_de = null;
             }
 
-            const { error } = await sb.from('guests').update(updateData).eq('codigo', codigo);
+            const { error } = await sbAdmin.from('guests').update(updateData).eq('codigo', codigo);
             if (error) throw error;
             showToast('✅ Invitado actualizado correctamente');
 
         } else if (mode === 'add-companion') {
-            // ── ADD COMPANION to existing primary guest ──
             const parentCode = modalOriginalCode.value;
             const parent = allGuests.find(g => g.codigo === parentCode);
             if (!parent) throw new Error('Titular no encontrado');
 
             const companionCode = await generateCompanionCode(parentCode);
             const newGuest = {
-                codigo: companionCode,
-                nombre,
-                grupo,
-                cupos: 0,
-                es_acompanante: true,
-                acompanante_de: parent.nombre,
-                estado: 'Pendiente',
-                restricciones: null,
-                confirmado_en: null
+                codigo: companionCode, nombre, grupo, cupos: 0,
+                es_acompanante: true, acompanante_de: parent.nombre,
+                estado: 'Pendiente', restricciones: null, confirmado_en: null
             };
 
-            const { error: insertError } = await sb.from('guests').insert(newGuest);
+            const { error: insertError } = await sbAdmin.from('guests').insert(newGuest);
             if (insertError) throw insertError;
 
-            // Increment parent's cupos
-            const { error: updateError } = await sb.from('guests').update({
-                cupos: parent.cupos + 1
-            }).eq('codigo', parentCode);
+            const { error: updateError } = await sbAdmin.from('guests').update({ cupos: parent.cupos + 1 }).eq('codigo', parentCode);
             if (updateError) throw updateError;
 
             showToast(`✅ ${nombre} agregado como acompañante de ${parent.nombre}`);
 
         } else {
-            // ── ADD NEW primary guest or companion ──
-            let newGuest;
-
             if (isCompanion) {
                 const companionOfName = modalCompanionOf.value;
                 const parent = allGuests.find(g => g.nombre === companionOfName && !g.es_acompanante);
-                if (!parent) {
-                    alert('Selecciona un titular válido');
-                    saveBtn.disabled = false;
-                    saveBtn.textContent = 'Guardar';
-                    return;
-                }
+                if (!parent) { alert('Selecciona un titular válido'); saveBtn.disabled = false; saveBtn.textContent = 'Guardar'; return; }
 
                 const companionCode = await generateCompanionCode(parent.codigo);
-                newGuest = {
-                    codigo: companionCode,
-                    nombre,
-                    grupo,
-                    cupos: 0,
-                    es_acompanante: true,
-                    acompanante_de: companionOfName,
-                    estado: 'Pendiente',
-                    restricciones: null,
-                    confirmado_en: null
+                const newGuest = {
+                    codigo: companionCode, nombre, grupo, cupos: 0,
+                    es_acompanante: true, acompanante_de: companionOfName,
+                    estado: 'Pendiente', restricciones: null, confirmado_en: null
                 };
 
-                const { error: insertError } = await sb.from('guests').insert(newGuest);
+                const { error: insertError } = await sbAdmin.from('guests').insert(newGuest);
                 if (insertError) throw insertError;
 
-                // Increment parent cupos
-                const { error: updateError } = await sb.from('guests').update({
-                    cupos: parent.cupos + 1
-                }).eq('codigo', parent.codigo);
+                const { error: updateError } = await sbAdmin.from('guests').update({ cupos: parent.cupos + 1 }).eq('codigo', parent.codigo);
                 if (updateError) throw updateError;
 
                 showToast(`✅ ${nombre} agregado como acompañante de ${companionOfName}`);
-
             } else {
                 const newCode = await generateNextCode();
-                newGuest = {
-                    codigo: newCode,
-                    nombre,
-                    grupo,
-                    cupos,
-                    es_acompanante: false,
-                    acompanante_de: null,
-                    estado: 'Pendiente',
-                    restricciones: null,
-                    confirmado_en: null
+                const newGuest = {
+                    codigo: newCode, nombre, grupo, cupos,
+                    es_acompanante: false, acompanante_de: null,
+                    estado: 'Pendiente', restricciones: null, confirmado_en: null
                 };
 
-                const { error } = await sb.from('guests').insert(newGuest);
+                const { error } = await sbAdmin.from('guests').insert(newGuest);
                 if (error) throw error;
                 showToast(`✅ ${nombre} agregado con código ${newCode}`);
             }
@@ -454,7 +411,7 @@ window.saveGuest = async function (e) {
 };
 
 // ═══════════════════════════════════════════════════════
-//  DELETE GUEST
+//  DELETE GUEST — uses sbAdmin (hard delete)
 // ═══════════════════════════════════════════════════════
 
 const deleteModalOverlay = document.getElementById('delete-modal-overlay');
@@ -468,7 +425,6 @@ window.openDeleteModal = function (codigo) {
     deleteTargetCode = codigo;
     deleteGuestNameEl.textContent = `"${guest.nombre}" (${guest.codigo})`;
 
-    // Check if this primary guest has companions
     if (!guest.es_acompanante) {
         const companions = allGuests.filter(g => g.acompanante_de === guest.nombre);
         if (companions.length > 0) {
@@ -508,26 +464,24 @@ window.confirmDelete = async function () {
             // Delete companions first
             const companions = allGuests.filter(g => g.acompanante_de === guest.nombre);
             for (const comp of companions) {
-                await sb.from('guests').delete().eq('codigo', comp.codigo);
+                const { error } = await sbAdmin.from('guests').delete().eq('codigo', comp.codigo);
+                if (error) throw error;
             }
             // Delete the primary guest
-            const { error } = await sb.from('guests').delete().eq('codigo', deleteTargetCode);
+            const { error } = await sbAdmin.from('guests').delete().eq('codigo', deleteTargetCode);
             if (error) throw error;
 
-            const totalDeleted = 1 + companions.length;
-            showToast(`🗑️ ${guest.nombre} y ${companions.length} acompañante(s) eliminados`);
+            showToast(`🗑️ ${guest.nombre} ${companions.length > 0 ? `y ${companions.length} acompañante(s) ` : ''}eliminado(s)`);
 
         } else {
             // Delete the companion
-            const { error } = await sb.from('guests').delete().eq('codigo', deleteTargetCode);
+            const { error } = await sbAdmin.from('guests').delete().eq('codigo', deleteTargetCode);
             if (error) throw error;
 
             // Decrement parent cupos
             const parent = allGuests.find(g => g.nombre === guest.acompanante_de && !g.es_acompanante);
             if (parent && parent.cupos > 1) {
-                await sb.from('guests').update({
-                    cupos: parent.cupos - 1
-                }).eq('codigo', parent.codigo);
+                await sbAdmin.from('guests').update({ cupos: parent.cupos - 1 }).eq('codigo', parent.codigo);
             }
 
             showToast(`🗑️ ${guest.nombre} eliminado`);
@@ -550,7 +504,6 @@ window.confirmDelete = async function () {
 // ═══════════════════════════════════════════════════════
 
 async function generateNextCode() {
-    // Get all primary guest codes (AJXX format), find the highest number
     const primaryCodes = allGuests
         .filter(g => !g.es_acompanante)
         .map(g => g.codigo)
@@ -563,7 +516,6 @@ async function generateNextCode() {
 }
 
 async function generateCompanionCode(parentCode) {
-    // Find existing companions for this parent: AJXX-C1, AJXX-C2, ...
     const existingCompanions = allGuests
         .filter(g => g.codigo.startsWith(parentCode + '-C'))
         .map(g => {
