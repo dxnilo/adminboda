@@ -72,7 +72,7 @@
             </div>
         </div>
 
-        <!-- Filters -->
+        <!-- Filters + Add Button -->
         <div class="filters-bar">
             <input type="text" id="search-input" placeholder="🔍 Buscar por nombre o código..." class="search-input">
             <select id="filter-status" class="filter-select">
@@ -90,6 +90,9 @@
                 <option value="Amigos Común">Amigos Común</option>
                 <option value="Invitados Novio">Invitados Novio</option>
             </select>
+            <button id="btn-add-guest" class="btn-add-guest" onclick="openAddGuestModal()">
+                <span class="btn-add-icon">+</span> Nuevo Invitado
+            </button>
         </div>
 
         <!-- Table -->
@@ -106,6 +109,7 @@
                         <th>Restricciones</th>
                         <th>Confirmado en</th>
                         <th>Enlace Invitación</th>
+                        <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="guests-tbody">
@@ -118,6 +122,88 @@
         <footer class="admin-footer">
             <p>Panel Administrativo · Boda Jean & Ana · 22 de Noviembre 2026</p>
         </footer>
+    </div>
+
+    <!-- ═══════ GUEST MODAL (Add / Edit) ═══════ -->
+    <div id="guest-modal-overlay" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 id="modal-title">Nuevo Invitado</h3>
+                <button class="modal-close" onclick="closeGuestModal()">&times;</button>
+            </div>
+            <form id="guest-form" onsubmit="saveGuest(event)">
+                <input type="hidden" id="modal-mode" value="add">
+                <input type="hidden" id="modal-original-code" value="">
+
+                <div class="input-group">
+                    <label for="modal-nombre">Nombre Completo</label>
+                    <input type="text" id="modal-nombre" placeholder="Ej: María García" required>
+                </div>
+
+                <div class="input-group">
+                    <label for="modal-grupo">Grupo</label>
+                    <select id="modal-grupo" required>
+                        <option value="">Selecciona un grupo</option>
+                        <option value="Familia Novio">Familia Novio</option>
+                        <option value="Familia Novia">Familia Novia</option>
+                        <option value="Amigos Novio">Amigos Novio</option>
+                        <option value="Amigos Novia">Amigos Novia</option>
+                        <option value="Amigos Común">Amigos Común</option>
+                        <option value="Invitados Novio">Invitados Novio</option>
+                    </select>
+                </div>
+
+                <div id="modal-companion-toggle-group" class="input-group">
+                    <label class="toggle-label">
+                        <input type="checkbox" id="modal-is-companion" onchange="toggleCompanionFields()">
+                        <span class="toggle-text">Es acompañante de alguien</span>
+                    </label>
+                </div>
+
+                <div id="modal-companion-fields" class="input-group hidden">
+                    <label for="modal-companion-of">Acompañante de</label>
+                    <select id="modal-companion-of">
+                        <option value="">Selecciona al titular</option>
+                    </select>
+                </div>
+
+                <div id="modal-cupos-group" class="input-group">
+                    <label for="modal-cupos">Cupos (pases)</label>
+                    <input type="number" id="modal-cupos" min="1" max="10" value="1">
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-modal-cancel" onclick="closeGuestModal()">Cancelar</button>
+                    <button type="submit" class="btn-modal-save" id="btn-save-guest">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ═══════ DELETE CONFIRMATION MODAL ═══════ -->
+    <div id="delete-modal-overlay" class="modal-overlay hidden">
+        <div class="modal-card modal-card-sm">
+            <div class="modal-header modal-header-danger">
+                <h3>Eliminar Invitado</h3>
+                <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
+            </div>
+            <div class="modal-body-delete">
+                <div class="delete-icon">🗑️</div>
+                <p>¿Estás seguro de eliminar a:</p>
+                <p class="delete-guest-name" id="delete-guest-name"></p>
+                <p class="delete-warning" id="delete-warning"></p>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-modal-cancel" onclick="closeDeleteModal()">Cancelar</button>
+                <button type="button" class="btn-modal-delete" id="btn-confirm-delete"
+                    onclick="confirmDelete()">Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════ TOAST ═══════ -->
+    <div id="admin-toast" class="admin-toast hidden">
+        <span id="admin-toast-msg"></span>
     </div>
 
     <!-- Supabase SDK -->

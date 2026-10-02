@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════
-//  Admin Panel — Supabase Integration
+//  Admin Panel — Supabase Integration + Guest Management
 //  Jean & Ana Wedding · 2026
 // ═══════════════════════════════════════════════════════
 
@@ -22,17 +22,15 @@ const filterGroup = document.getElementById('filter-group');
 const noResults = document.getElementById('no-results');
 
 let allGuests = [];
+let deleteTargetCode = null;
 
 // ═══════════════════════════════════════════════════════
 //  FIXED CREDENTIALS AUTHENTICATION
-//  User: jean carlos
-//  Pass: jeananaforever
 // ═══════════════════════════════════════════════════════
 
 const VALID_USER = 'jean carlos';
 const VALID_PASS = 'jeananaforever';
 
-// Login submit
 loginForm.addEventListener('submit', (e) => {
     e.preventDefault();
     loginError.textContent = '';
@@ -47,14 +45,12 @@ loginForm.addEventListener('submit', (e) => {
     }
 });
 
-// Logout
 document.getElementById('btn-logout').addEventListener('click', () => {
     sessionStorage.removeItem('admin_auth');
     loginScreen.classList.remove('hidden');
     dashboard.classList.add('hidden');
 });
 
-// Session check on load
 (function checkSession() {
     if (sessionStorage.getItem('admin_auth') === 'true') {
         showDashboard('jean carlos');
@@ -106,7 +102,7 @@ function animateNumber(id, target) {
 
     function step(now) {
         const progress = Math.min((now - start) / duration, 1);
-        const eased = 1 - Math.pow(1 - progress, 3); // easeOutCubic
+        const eased = 1 - Math.pow(1 - progress, 3);
         el.textContent = Math.round(current + (target - current) * eased);
         if (progress < 1) requestAnimationFrame(step);
     }
@@ -149,12 +145,19 @@ function renderTable() {
             ? new Date(g.confirmado_en).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
             : '—';
 
-        // Base URL for production / GitHub Pages
         const baseUrl = 'https://dxnilo.github.io/boda/?codigo=';
 
-        const actionCol = g.es_acompanante
+        const linkCol = g.es_acompanante
             ? `<span class="companion-no-link">↳ Incluido en pase</span>`
             : `<button class="btn-copy-link" onclick="copyGuestLink('${g.codigo}', this)">📋 Copiar Link</button>`;
+
+        // Action buttons
+        const addCompanionBtn = !g.es_acompanante
+            ? `<button class="btn-action btn-action-add" onclick="openAddCompanionModal('${g.codigo}', '${g.nombre.replace(/'/g, "\\'")}')" title="Agregar acompañante">👥+</button>`
+            : '';
+
+        const editBtn = `<button class="btn-action btn-action-edit" onclick="openEditGuestModal('${g.codigo}')" title="Editar">✏️</button>`;
+        const deleteBtn = `<button class="btn-action btn-action-delete" onclick="openDeleteModal('${g.codigo}')" title="Eliminar">🗑️</button>`;
 
         return `<tr>
             <td><code>${g.codigo}</code></td>
@@ -165,15 +168,15 @@ function renderTable() {
             <td><span class="badge ${statusClass}">${g.estado}</span></td>
             <td>${g.restricciones || '—'}</td>
             <td>${confirmDate}</td>
-            <td>${actionCol}</td>
+            <td>${linkCol}</td>
+            <td class="actions-cell">${addCompanionBtn}${editBtn}${deleteBtn}</td>
         </tr>`;
     }).join('');
 }
 
-// Copy link function for primary guests
+// Copy link
 window.copyGuestLink = async function (codigo, btnElement) {
     const url = `https://dxnilo.github.io/boda/?codigo=${codigo}`;
-
     try {
         await navigator.clipboard.writeText(url);
         if (btnElement) {
@@ -195,3 +198,396 @@ window.copyGuestLink = async function (codigo, btnElement) {
 searchInput.addEventListener('input', renderTable);
 filterStatus.addEventListener('change', renderTable);
 filterGroup.addEventListener('change', renderTable);
+
+// ═══════════════════════════════════════════════════════
+//  GUEST MODAL — ADD / EDIT / ADD COMPANION
+// ═══════════════════════════════════════════════════════
+
+const guestModalOverlay = document.getElementById('guest-modal-overlay');
+const guestForm = document.getElementById('guest-form');
+const modalTitle = document.getElementById('modal-title');
+const modalMode = document.getElementById('modal-mode');
+const modalOriginalCode = document.getElementById('modal-original-code');
+const modalNombre = document.getElementById('modal-nombre');
+const modalGrupo = document.getElementById('modal-grupo');
+const modalIsCompanion = document.getElementById('modal-is-companion');
+const modalCompanionFields = document.getElementById('modal-companion-fields');
+const modalCompanionOf = document.getElementById('modal-companion-of');
+const modalCuposGroup = document.getElementById('modal-cupos-group');
+const modalCupos = document.getElementById('modal-cupos');
+const modalCompanionToggleGroup = document.getElementById('modal-companion-toggle-group');
+
+// Open modal to add a brand-new guest
+window.openAddGuestModal = function () {
+    resetModal();
+    modalTitle.textContent = 'Nuevo Invitado';
+    modalMode.value = 'add';
+    populatePrimaryGuestsDropdown();
+    guestModalOverlay.classList.remove('hidden');
+    requestAnimationFrame(() => guestModalOverlay.classList.add('visible'));
+    modalNombre.focus();
+};
+
+// Open modal to edit an existing guest
+window.openEditGuestModal = function (codigo) {
+    resetModal();
+    const guest = allGuests.find(g => g.codigo === codigo);
+    if (!guest) return;
+
+    modalTitle.textContent = 'Editar Invitado';
+    modalMode.value = 'edit';
+    modalOriginalCode.value = codigo;
+
+    modalNombre.value = guest.nombre;
+    modalGrupo.value = guest.grupo || '';
+    modalIsCompanion.checked = guest.es_acompanante;
+    modalCupos.value = guest.cupos || 1;
+
+    if (guest.es_acompanante) {
+        modalCompanionFields.classList.remove('hidden');
+        modalCuposGroup.classList.add('hidden');
+        populatePrimaryGuestsDropdown(guest.acompanante_de);
+    } else {
+        populatePrimaryGuestsDropdown();
+    }
+
+    guestModalOverlay.classList.remove('hidden');
+    requestAnimationFrame(() => guestModalOverlay.classList.add('visible'));
+    modalNombre.focus();
+};
+
+// Open modal to add a companion for a specific primary guest
+window.openAddCompanionModal = function (parentCode, parentName) {
+    resetModal();
+    modalTitle.textContent = `Agregar Acompañante de ${parentName}`;
+    modalMode.value = 'add-companion';
+    modalOriginalCode.value = parentCode;
+
+    // Pre-fill group from the parent
+    const parent = allGuests.find(g => g.codigo === parentCode);
+    if (parent) modalGrupo.value = parent.grupo || '';
+
+    // Hide companion toggle + cupos, auto-set as companion
+    modalCompanionToggleGroup.classList.add('hidden');
+    modalCuposGroup.classList.add('hidden');
+    modalCompanionFields.classList.add('hidden');
+    modalIsCompanion.checked = true;
+
+    guestModalOverlay.classList.remove('hidden');
+    requestAnimationFrame(() => guestModalOverlay.classList.add('visible'));
+    modalNombre.focus();
+};
+
+window.closeGuestModal = function () {
+    guestModalOverlay.classList.remove('visible');
+    setTimeout(() => guestModalOverlay.classList.add('hidden'), 300);
+};
+
+window.toggleCompanionFields = function () {
+    if (modalIsCompanion.checked) {
+        modalCompanionFields.classList.remove('hidden');
+        modalCuposGroup.classList.add('hidden');
+        populatePrimaryGuestsDropdown();
+    } else {
+        modalCompanionFields.classList.add('hidden');
+        modalCuposGroup.classList.remove('hidden');
+    }
+};
+
+function resetModal() {
+    guestForm.reset();
+    modalMode.value = 'add';
+    modalOriginalCode.value = '';
+    modalCompanionFields.classList.add('hidden');
+    modalCuposGroup.classList.remove('hidden');
+    modalCompanionToggleGroup.classList.remove('hidden');
+    modalIsCompanion.checked = false;
+    modalCupos.value = 1;
+}
+
+function populatePrimaryGuestsDropdown(selectedName) {
+    const primaries = allGuests.filter(g => !g.es_acompanante);
+    modalCompanionOf.innerHTML = '<option value="">Selecciona al titular</option>';
+    primaries.forEach(g => {
+        const opt = document.createElement('option');
+        opt.value = g.nombre;
+        opt.textContent = `${g.nombre} (${g.codigo})`;
+        if (selectedName && g.nombre === selectedName) opt.selected = true;
+        modalCompanionOf.appendChild(opt);
+    });
+}
+
+// ═══════════════════════════════════════════════════════
+//  SAVE GUEST (INSERT / UPDATE)
+// ═══════════════════════════════════════════════════════
+
+window.saveGuest = async function (e) {
+    e.preventDefault();
+    const saveBtn = document.getElementById('btn-save-guest');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Guardando...';
+
+    const mode = modalMode.value;
+    const nombre = modalNombre.value.trim();
+    const grupo = modalGrupo.value;
+    const isCompanion = modalIsCompanion.checked;
+    const cupos = isCompanion ? 0 : parseInt(modalCupos.value) || 1;
+
+    try {
+        if (mode === 'edit') {
+            // ── EDIT existing guest ──
+            const codigo = modalOriginalCode.value;
+            const updateData = {
+                nombre,
+                grupo,
+                es_acompanante: isCompanion,
+                cupos
+            };
+            if (isCompanion) {
+                updateData.acompanante_de = modalCompanionOf.value;
+            } else {
+                updateData.acompanante_de = null;
+            }
+
+            const { error } = await sb.from('guests').update(updateData).eq('codigo', codigo);
+            if (error) throw error;
+            showToast('✅ Invitado actualizado correctamente');
+
+        } else if (mode === 'add-companion') {
+            // ── ADD COMPANION to existing primary guest ──
+            const parentCode = modalOriginalCode.value;
+            const parent = allGuests.find(g => g.codigo === parentCode);
+            if (!parent) throw new Error('Titular no encontrado');
+
+            const companionCode = await generateCompanionCode(parentCode);
+            const newGuest = {
+                codigo: companionCode,
+                nombre,
+                grupo,
+                cupos: 0,
+                es_acompanante: true,
+                acompanante_de: parent.nombre,
+                estado: 'Pendiente',
+                restricciones: null,
+                confirmado_en: null
+            };
+
+            const { error: insertError } = await sb.from('guests').insert(newGuest);
+            if (insertError) throw insertError;
+
+            // Increment parent's cupos
+            const { error: updateError } = await sb.from('guests').update({
+                cupos: parent.cupos + 1
+            }).eq('codigo', parentCode);
+            if (updateError) throw updateError;
+
+            showToast(`✅ ${nombre} agregado como acompañante de ${parent.nombre}`);
+
+        } else {
+            // ── ADD NEW primary guest or companion ──
+            let newGuest;
+
+            if (isCompanion) {
+                const companionOfName = modalCompanionOf.value;
+                const parent = allGuests.find(g => g.nombre === companionOfName && !g.es_acompanante);
+                if (!parent) {
+                    alert('Selecciona un titular válido');
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = 'Guardar';
+                    return;
+                }
+
+                const companionCode = await generateCompanionCode(parent.codigo);
+                newGuest = {
+                    codigo: companionCode,
+                    nombre,
+                    grupo,
+                    cupos: 0,
+                    es_acompanante: true,
+                    acompanante_de: companionOfName,
+                    estado: 'Pendiente',
+                    restricciones: null,
+                    confirmado_en: null
+                };
+
+                const { error: insertError } = await sb.from('guests').insert(newGuest);
+                if (insertError) throw insertError;
+
+                // Increment parent cupos
+                const { error: updateError } = await sb.from('guests').update({
+                    cupos: parent.cupos + 1
+                }).eq('codigo', parent.codigo);
+                if (updateError) throw updateError;
+
+                showToast(`✅ ${nombre} agregado como acompañante de ${companionOfName}`);
+
+            } else {
+                const newCode = await generateNextCode();
+                newGuest = {
+                    codigo: newCode,
+                    nombre,
+                    grupo,
+                    cupos,
+                    es_acompanante: false,
+                    acompanante_de: null,
+                    estado: 'Pendiente',
+                    restricciones: null,
+                    confirmado_en: null
+                };
+
+                const { error } = await sb.from('guests').insert(newGuest);
+                if (error) throw error;
+                showToast(`✅ ${nombre} agregado con código ${newCode}`);
+            }
+        }
+
+        closeGuestModal();
+        await loadGuests();
+
+    } catch (err) {
+        console.error('Error saving guest:', err);
+        showToast('❌ Error al guardar: ' + (err.message || err));
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Guardar';
+    }
+};
+
+// ═══════════════════════════════════════════════════════
+//  DELETE GUEST
+// ═══════════════════════════════════════════════════════
+
+const deleteModalOverlay = document.getElementById('delete-modal-overlay');
+const deleteGuestNameEl = document.getElementById('delete-guest-name');
+const deleteWarningEl = document.getElementById('delete-warning');
+
+window.openDeleteModal = function (codigo) {
+    const guest = allGuests.find(g => g.codigo === codigo);
+    if (!guest) return;
+
+    deleteTargetCode = codigo;
+    deleteGuestNameEl.textContent = `"${guest.nombre}" (${guest.codigo})`;
+
+    // Check if this primary guest has companions
+    if (!guest.es_acompanante) {
+        const companions = allGuests.filter(g => g.acompanante_de === guest.nombre);
+        if (companions.length > 0) {
+            deleteWarningEl.textContent = `⚠️ Este titular tiene ${companions.length} acompañante(s) que también serán eliminados.`;
+            deleteWarningEl.classList.add('has-warning');
+        } else {
+            deleteWarningEl.textContent = 'Esta acción no se puede deshacer.';
+            deleteWarningEl.classList.remove('has-warning');
+        }
+    } else {
+        deleteWarningEl.textContent = 'Se reducirá el cupo del titular.';
+        deleteWarningEl.classList.remove('has-warning');
+    }
+
+    deleteModalOverlay.classList.remove('hidden');
+    requestAnimationFrame(() => deleteModalOverlay.classList.add('visible'));
+};
+
+window.closeDeleteModal = function () {
+    deleteModalOverlay.classList.remove('visible');
+    setTimeout(() => deleteModalOverlay.classList.add('hidden'), 300);
+    deleteTargetCode = null;
+};
+
+window.confirmDelete = async function () {
+    if (!deleteTargetCode) return;
+
+    const confirmBtn = document.getElementById('btn-confirm-delete');
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = 'Eliminando...';
+
+    try {
+        const guest = allGuests.find(g => g.codigo === deleteTargetCode);
+        if (!guest) throw new Error('Invitado no encontrado');
+
+        if (!guest.es_acompanante) {
+            // Delete companions first
+            const companions = allGuests.filter(g => g.acompanante_de === guest.nombre);
+            for (const comp of companions) {
+                await sb.from('guests').delete().eq('codigo', comp.codigo);
+            }
+            // Delete the primary guest
+            const { error } = await sb.from('guests').delete().eq('codigo', deleteTargetCode);
+            if (error) throw error;
+
+            const totalDeleted = 1 + companions.length;
+            showToast(`🗑️ ${guest.nombre} y ${companions.length} acompañante(s) eliminados`);
+
+        } else {
+            // Delete the companion
+            const { error } = await sb.from('guests').delete().eq('codigo', deleteTargetCode);
+            if (error) throw error;
+
+            // Decrement parent cupos
+            const parent = allGuests.find(g => g.nombre === guest.acompanante_de && !g.es_acompanante);
+            if (parent && parent.cupos > 1) {
+                await sb.from('guests').update({
+                    cupos: parent.cupos - 1
+                }).eq('codigo', parent.codigo);
+            }
+
+            showToast(`🗑️ ${guest.nombre} eliminado`);
+        }
+
+        closeDeleteModal();
+        await loadGuests();
+
+    } catch (err) {
+        console.error('Error deleting guest:', err);
+        showToast('❌ Error al eliminar: ' + (err.message || err));
+    } finally {
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = 'Eliminar';
+    }
+};
+
+// ═══════════════════════════════════════════════════════
+//  CODE GENERATION
+// ═══════════════════════════════════════════════════════
+
+async function generateNextCode() {
+    // Get all primary guest codes (AJXX format), find the highest number
+    const primaryCodes = allGuests
+        .filter(g => !g.es_acompanante)
+        .map(g => g.codigo)
+        .filter(c => /^AJ\d+$/.test(c))
+        .map(c => parseInt(c.replace('AJ', '')));
+
+    const maxNum = primaryCodes.length > 0 ? Math.max(...primaryCodes) : 0;
+    const nextNum = maxNum + 1;
+    return `AJ${nextNum.toString().padStart(2, '0')}`;
+}
+
+async function generateCompanionCode(parentCode) {
+    // Find existing companions for this parent: AJXX-C1, AJXX-C2, ...
+    const existingCompanions = allGuests
+        .filter(g => g.codigo.startsWith(parentCode + '-C'))
+        .map(g => {
+            const match = g.codigo.match(/-C(\d+)$/);
+            return match ? parseInt(match[1]) : 0;
+        });
+
+    const maxC = existingCompanions.length > 0 ? Math.max(...existingCompanions) : 0;
+    return `${parentCode}-C${maxC + 1}`;
+}
+
+// ═══════════════════════════════════════════════════════
+//  TOAST NOTIFICATION
+// ═══════════════════════════════════════════════════════
+
+function showToast(msg) {
+    const toast = document.getElementById('admin-toast');
+    const toastMsg = document.getElementById('admin-toast-msg');
+    toastMsg.textContent = msg;
+    toast.classList.remove('hidden');
+    toast.classList.add('visible');
+
+    setTimeout(() => {
+        toast.classList.remove('visible');
+        setTimeout(() => toast.classList.add('hidden'), 400);
+    }, 3000);
+}
