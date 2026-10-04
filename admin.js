@@ -176,9 +176,12 @@ function renderTable() {
     }).join('');
 }
 
+// ── Domain config — update this when custom domain is active ──
+const WEDDING_DOMAIN = 'https://jeani-boda.sbs';
+
 // Copy link
 window.copyGuestLink = async function (codigo, btnElement) {
-    const url = `https://dxnilo.github.io/boda/?codigo=${codigo}`;
+    const url = `${WEDDING_DOMAIN}/?codigo=${codigo}`;
     try {
         await navigator.clipboard.writeText(url);
         if (btnElement) {
