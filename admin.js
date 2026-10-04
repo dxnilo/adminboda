@@ -226,7 +226,7 @@ const modalCompanionToggleGroup = document.getElementById('modal-companion-toggl
 
 window.openAddGuestModal = function () {
     resetModal();
-    modalEstadoGroup.classList.add('hidden');
+    if (modalEstadoGroup) modalEstadoGroup.classList.add('hidden');
     modalTitle.textContent = 'Nuevo Invitado';
     modalMode.value = 'add';
     populatePrimaryGuestsDropdown();
@@ -243,12 +243,12 @@ window.openEditGuestModal = function (codigo) {
     modalTitle.textContent = 'Editar Invitado';
     modalMode.value = 'edit';
     modalOriginalCode.value = codigo;
-    modalEstadoGroup.classList.remove('hidden');
+    if (modalEstadoGroup) modalEstadoGroup.classList.remove('hidden');
 
     modalNombre.value = guest.nombre;
     modalGrupo.value = guest.grupo || '';
     modalIsCompanion.checked = guest.es_acompanante;
-    modalEstado.value = guest.estado || 'Pendiente';
+    if (modalEstado) modalEstado.value = guest.estado || 'Pendiente';
     modalCupos.value = guest.cupos || 1;
 
     if (guest.es_acompanante) {
@@ -276,7 +276,7 @@ window.openAddCompanionModal = function (parentCode, parentName) {
     modalCompanionToggleGroup.classList.add('hidden');
     modalCuposGroup.classList.add('hidden');
     modalCompanionFields.classList.add('hidden');
-    modalEstadoGroup.classList.add('hidden');
+    if (modalEstadoGroup) modalEstadoGroup.classList.add('hidden');
     modalIsCompanion.checked = true;
 
     guestModalOverlay.classList.remove('hidden');
@@ -309,6 +309,7 @@ function resetModal() {
     modalCompanionToggleGroup.classList.remove('hidden');
     modalIsCompanion.checked = false;
     modalCupos.value = 1;
+    if (modalEstadoGroup) modalEstadoGroup.classList.add('hidden');
 }
 
 function populatePrimaryGuestsDropdown(selectedName) {
