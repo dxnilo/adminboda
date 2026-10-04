@@ -486,6 +486,64 @@ body {
     font-style: italic;
 }
 
+.link-cell-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: nowrap;
+}
+
+.btn-copy-link {
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.btn-copy-link:hover {
+    border-color: var(--gold);
+    color: var(--gold-light);
+}
+
+.btn-copy-link.copied {
+    background: rgba(52, 211, 153, 0.15);
+    border-color: var(--green);
+    color: var(--green);
+}
+
+.btn-sent-badge {
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text-muted);
+    font-family: var(--font);
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.btn-sent-badge:hover {
+    border-color: var(--gold);
+    color: var(--gold);
+}
+
+.btn-sent-badge.is-sent {
+    background: rgba(52, 211, 153, 0.12);
+    border-color: rgba(52, 211, 153, 0.35);
+    color: var(--green);
+    font-weight: 600;
+}
+
 .no-results {
     text-align: center;
     padding: 40px;

@@ -113,17 +113,50 @@ function animateNumber(id, target) {
     requestAnimationFrame(step);
 }
 
+// ── Sent Invitations (localStorage) ──
+function getSentGuests() {
+    try {
+        return JSON.parse(localStorage.getItem('admin_sent_guests') || '{}');
+    } catch {
+        return {};
+    }
+}
+
+window.toggleSentStatus = function (codigo, e) {
+    if (e) e.stopPropagation();
+    const sentMap = getSentGuests();
+    const current = !!sentMap[codigo];
+    if (current) {
+        delete sentMap[codigo];
+    } else {
+        sentMap[codigo] = true;
+    }
+    localStorage.setItem('admin_sent_guests', JSON.stringify(sentMap));
+    renderTable();
+    showToast(!current ? '✉️ Marcado como invitación enviada' : '📩 Marcado como pendiente por enviar');
+};
+
 // ── Table rendering ──
 function renderTable() {
     const search = searchInput.value.toLowerCase();
     const statusFilter = filterStatus.value;
     const groupFilter = filterGroup.value;
+    const sentMap = getSentGuests();
 
     const filtered = allGuests.filter(g => {
         const matchesSearch = !search ||
             g.nombre.toLowerCase().includes(search) ||
             g.codigo.toLowerCase().includes(search);
-        const matchesStatus = statusFilter === 'all' || g.estado === statusFilter;
+
+        let matchesStatus = true;
+        if (statusFilter === 'Enviado') {
+            matchesStatus = !!sentMap[g.codigo];
+        } else if (statusFilter === 'SinEnviar') {
+            matchesStatus = !g.es_acompanante && !sentMap[g.codigo];
+        } else if (statusFilter !== 'all') {
+            matchesStatus = g.estado === statusFilter;
+        }
+
         const matchesGroup = groupFilter === 'all' || g.grupo === groupFilter;
         return matchesSearch && matchesStatus && matchesGroup;
     });
@@ -149,9 +182,15 @@ function renderTable() {
             ? new Date(g.confirmado_en).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
             : '—';
 
+        const isSent = !!sentMap[g.codigo];
+        const sentBadgeHtml = `<button class="btn-sent-badge ${isSent ? 'is-sent' : ''}" onclick="toggleSentStatus('${g.codigo}', event)" title="Haz clic para cambiar estado de envío">${isSent ? '✉️ Enviada' : '📩 Enviar'}</button>`;
+
         const linkCol = g.es_acompanante
             ? `<span class="companion-no-link">↳ Incluido en pase</span>`
-            : `<button class="btn-copy-link" onclick="copyGuestLink('${g.codigo}', this)">📋 Copiar Link</button>`;
+            : `<div class="link-cell-group">
+                <button class="btn-copy-link" onclick="copyGuestLink('${g.codigo}', this)">📋 Copiar Link</button>
+                ${sentBadgeHtml}
+               </div>`;
 
         // Action buttons
         const addCompanionBtn = !g.es_acompanante
@@ -184,6 +223,14 @@ window.copyGuestLink = async function (codigo, btnElement) {
     const url = `${WEDDING_DOMAIN}/?codigo=${codigo}`;
     try {
         await navigator.clipboard.writeText(url);
+
+        // Auto mark as sent when copying link
+        const sentMap = getSentGuests();
+        if (!sentMap[codigo]) {
+            sentMap[codigo] = true;
+            localStorage.setItem('admin_sent_guests', JSON.stringify(sentMap));
+        }
+
         if (btnElement) {
             const originalText = btnElement.innerHTML;
             btnElement.innerHTML = '¡Link Copiado! ✨';
@@ -191,7 +238,8 @@ window.copyGuestLink = async function (codigo, btnElement) {
             setTimeout(() => {
                 btnElement.innerHTML = originalText;
                 btnElement.classList.remove('copied');
-            }, 2000);
+                renderTable();
+            }, 1800);
         }
     } catch (err) {
         console.error('Error al copiar link:', err);
