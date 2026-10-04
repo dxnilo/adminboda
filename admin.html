@@ -172,6 +172,15 @@
                     <input type="number" id="modal-cupos" min="1" max="10" value="1">
                 </div>
 
+                <div id="modal-estado-group" class="input-group hidden">
+                    <label for="modal-estado">Estado</label>
+                    <select id="modal-estado">
+                        <option value="Pendiente">⏳ Pendiente</option>
+                        <option value="Confirmado">✅ Confirmado</option>
+                        <option value="Declinado">❌ Declinado</option>
+                    </select>
+                </div>
+
                 <div class="modal-actions">
                     <button type="button" class="btn-modal-cancel" onclick="closeGuestModal()">Cancelar</button>
                     <button type="submit" class="btn-modal-save" id="btn-save-guest">Guardar</button>

@@ -220,10 +220,13 @@ const modalCompanionFields = document.getElementById('modal-companion-fields');
 const modalCompanionOf = document.getElementById('modal-companion-of');
 const modalCuposGroup = document.getElementById('modal-cupos-group');
 const modalCupos = document.getElementById('modal-cupos');
+const modalEstadoGroup = document.getElementById('modal-estado-group');
+const modalEstado = document.getElementById('modal-estado');
 const modalCompanionToggleGroup = document.getElementById('modal-companion-toggle-group');
 
 window.openAddGuestModal = function () {
     resetModal();
+    modalEstadoGroup.classList.add('hidden');
     modalTitle.textContent = 'Nuevo Invitado';
     modalMode.value = 'add';
     populatePrimaryGuestsDropdown();
@@ -240,10 +243,12 @@ window.openEditGuestModal = function (codigo) {
     modalTitle.textContent = 'Editar Invitado';
     modalMode.value = 'edit';
     modalOriginalCode.value = codigo;
+    modalEstadoGroup.classList.remove('hidden');
 
     modalNombre.value = guest.nombre;
     modalGrupo.value = guest.grupo || '';
     modalIsCompanion.checked = guest.es_acompanante;
+    modalEstado.value = guest.estado || 'Pendiente';
     modalCupos.value = guest.cupos || 1;
 
     if (guest.es_acompanante) {
@@ -271,6 +276,7 @@ window.openAddCompanionModal = function (parentCode, parentName) {
     modalCompanionToggleGroup.classList.add('hidden');
     modalCuposGroup.classList.add('hidden');
     modalCompanionFields.classList.add('hidden');
+    modalEstadoGroup.classList.add('hidden');
     modalIsCompanion.checked = true;
 
     guestModalOverlay.classList.remove('hidden');
@@ -336,7 +342,8 @@ window.saveGuest = async function (e) {
     try {
         if (mode === 'edit') {
             const codigo = modalOriginalCode.value;
-            const updateData = { nombre, grupo, es_acompanante: isCompanion, cupos };
+            const estado = modalEstado.value || 'Pendiente';
+            const updateData = { nombre, grupo, es_acompanante: isCompanion, cupos, estado };
             if (isCompanion) {
                 updateData.acompanante_de = modalCompanionOf.value;
             } else {
